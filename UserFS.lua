@@ -84,6 +84,9 @@ function UserFS:new(baseFs,usr)
     function o.Permissions(path)
         return baseFs:Permissions(path, usr)
     end
+    function o.getPermissions(path, user)
+        return baseFs:Permissions(path, user)
+    end
 
     function o.complete(sPath, sLocation, bIncludeFiles, bIncludeDirs)
         expect.expect(1, sPath, "string")

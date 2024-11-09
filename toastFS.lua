@@ -91,6 +91,7 @@ function FileSystem:new()
 
         return userPerms
     end
+    
 
     --- Function to mount another filesystem to a specified path
     ---@param path string

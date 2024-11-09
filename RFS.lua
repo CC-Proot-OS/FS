@@ -126,12 +126,10 @@ function RealFS:_open(path, mode, userId)
 
     -- Check if file exists and handle according to mode
     if mode == "r" then
-        if not meta then
-            error "File not found"
-        end
         -- Check if user has read permissions
         if not self:checkPermissions(path, userId, "r") then
-            return nil, "Permission denied for reading"
+            local p,e =self:Permissions(path,userId)
+            return nil, "Permission denied for reading "..p.." "..e
         end
     elseif mode == "w" or mode == "w+" then
         if meta then
@@ -254,7 +252,7 @@ end
 -- Get a user's permissions for a path
 function RealFS:Permissions(path, userId)
     local meta = self.permissions[path]
-    if not meta then return 0,"NOTFOUND" end
+    if not meta then return 0,"NOTFOUND"..path end
     if userId == 0 then
         return 7
     end
@@ -318,7 +316,7 @@ function RealFS:_delete(path, userId)
         return false, "Permission denied"
     end
 
-    os.execute("rm -r " .. absolutePath)
+    ofs.delete(absolutePath)
     self.permissions[path] = nil
     self:savePermissions()
     return true
