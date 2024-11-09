@@ -1,3 +1,6 @@
+-- Buggy old code
+-- DO Not use
+-- TODO: Remove
 do
     local h = fs.open("/proot/txtUtil.lua", "r")
     local f, err = (_VERSION == "Lua 5.1" and loadstring or load)(h.readAll(), "@/rom/apis/textutils.lua")
