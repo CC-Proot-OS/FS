@@ -1,17 +1,10 @@
 -- Buggy old code
 -- DO Not use
 -- TODO: Remove
-do
-    local h = fs.open("/proot/txtUtil.lua", "r")
-    local f, err = (_VERSION == "Lua 5.1" and loadstring or load)(h.readAll(), "@/rom/apis/textutils.lua")
-    h.close()
-
-    if not f then error(err) end
-    textutils = f()
-end
+local textutils = fs:exec("/lib/txtUtil.lua",0)()
 local ofs = fs
 -- Define the FileSystem class
-FileSystem = {}
+local FileSystem = {}
 FileSystem.__index = FileSystem
 
 --- Constructor for the filesystem
@@ -101,6 +94,7 @@ function FileSystem:new()
 
         return userPerms
     end
+    
 
     --- Function to mount another filesystem to a specified path
     ---@param path string

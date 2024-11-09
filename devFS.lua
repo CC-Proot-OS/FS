@@ -1,11 +1,12 @@
+local FileSystem = fs:exec("/lib/toastfs.lua",0)()
 local DFS = {}
 function DFS:new()
     -- Create a special DevFileSystem that inherits from FileSystem
     DevFileSystem = FileSystem:new()
+    DevFileSystem._list = DevFileSystem.list
     DevFileSystem.root = {
         isDir = true,
     }
-
     -- Function to add a device node to /dev
     function DevFileSystem:addDevice(name, handler,perms)
         self.root[name] = {
