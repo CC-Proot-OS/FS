@@ -39,6 +39,7 @@ function DFS:new()
             return FileSystem.open(self, path, mode, userId)  -- Call the base class method
         end
     end
+    DevFileSystem._open = DevFileSystem.open
     -- Function to check permissions
     function DevFileSystem:checkPermissions(item, userId, accessType)
         --local userPerms = item.permissions[userId] or 0  -- Default to 0 if no permissions assigned
