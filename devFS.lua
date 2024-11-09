@@ -66,6 +66,7 @@ function DFS:new()
         
         return item.perms
     end
+    DevFileSystem._getPermissions = DevFileSystem.Permissions
     return DevFileSystem
 end
 return DFS
