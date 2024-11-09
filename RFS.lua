@@ -529,6 +529,29 @@ function RealFS:new(storePath)
         return true -- Return true on success
     end
 
+    -- Function to change the permissions of a file or directory
+    function FS:takeOwn(path, userId)
+        -- Find the filesystem and the relative path
+        local fs, relativePath = self:findFS(path, userId)
+        return fs:_takeOwn(relativePath, userId)
+    end
+
+    -- Internal chmod function (used by the found filesystem)
+    function FS:_takeOwn(path, userId)
+        local meta = self.permissions[path]
+
+        if not meta then
+            error "File or directory not found"
+        end
+
+        meta.ownerId = userId
+
+        meta.modified = os.time() -- Update the modification time
+        self:savePermissions()
+
+        return true -- Return true on success
+    end
+
     -- Function to execute a file using fs.open
     function FS:exec(path, userId)
         -- Find the filesystem and relative path
