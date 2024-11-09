@@ -45,19 +45,146 @@ function RealFS:mount(path, fs,user)
     self.mounts[path] = fs
     return true
 end
+-- Helper function to split a path into components
+function RealFS:splitPath(path)
+    local parts = {}
+    for part in string.gmatch(path, "[^/]+") do
+        table.insert(parts, part)
+    end
+    return parts
+end
 
--- Find the filesystem for a given path, and return the relative path for that filesystem
-function RealFS:findFS(path)
-    for mountPath, fs in pairs(self.mounts) do
-        if path:sub(1, #mountPath) == mountPath then
-            
-            local relativePath = path:sub(#mountPath + 1)
-            if relativePath == "" then relativePath = "/" end
-            return fs, relativePath
+-- Function to create a symlink at a path pointing to targetPath
+function RealFS:symlink(path, targetPath, userId)
+    -- Find the parent directory to ensure it's writable
+    local parentPath = self:getParentPath(path)
+    local parentMeta = self.permissions[parentPath]
+
+    if not parentMeta then
+        return nil, "Parent directory not found"
+    end
+
+    -- Check if the user has write permissions to create a symlink
+    if not self:checkPermissions(parentMeta, userId, "w") then
+        return nil, "Permission denied to create symlink"
+    end
+
+    -- Add ".sym" extension to store as a symlink file
+    local symPath = path .. ".sym"
+
+    -- Write the target path into the .sym file
+    local file, err = self:open(symPath, "w", userId)
+    if not file then
+        return nil, "Failed to create symlink: " .. err
+    end
+    file:write(targetPath)
+    file:close()
+
+    -- Mark this path as a symlink in the permissions metadata
+    self.permissions[symPath] = {
+        isSymlink = true,
+        permissions = {}, -- Symlink may inherit permissions from target
+    }
+
+    return true  -- Symlink created successfully
+end
+
+
+-- Resolve a symlink, if it's a .sym file, and handle loops
+function RealFS:resolveSymlink(path, visited)
+    visited = visited or {}
+
+    -- Detect loops in symlinks
+    if visited[path] then
+        return nil, "Symlink loop detected"
+    end
+    visited[path] = true
+
+    -- Check if the path is a symlink (".sym" file)
+    local symPath = path .. ".sym"
+    local meta = self.permissions[symPath]
+    
+    if meta and meta.isSymlink then
+        -- Open the .sym file to read the target path
+        local file, err = self:open(symPath, "r", 0) -- Root user (0) for reading
+        if not file then
+            return nil, "Failed to open symlink file: " .. err
+        end
+        
+        local targetPath = file:readAll()
+        file:close()
+        
+        -- Return the target path (symlink resolves to this path)
+        return targetPath, nil
+    end
+
+    -- If it's not a symlink, return the original path
+    return path, nil
+end
+
+function RealFS:resolveFullPath(path,userId)
+    if string.sub(path, 1, 1) == "~" then
+        path = "/home/user" .. tostring(userId) .. string.sub(path, 2)
+    end
+    local parts = self:splitPath(path)
+    local resolvedParts = {}
+    local visited = {}
+
+    for _, part in ipairs(parts) do
+        if part == "" or part == "." then
+            -- Ignore empty components or current directory references
+        elseif part == ".." then
+            -- Go back one directory
+            if #resolvedParts > 0 then
+                table.remove(resolvedParts)
+            end
+        else
+            -- Check for symlinks at this level
+            local currentPath = "/" .. table.concat(resolvedParts, "/") .. "/" .. part
+            local resolvedPath, err = self:resolveSymlink(currentPath, visited)
+            if not resolvedPath then
+                return nil, err  -- Return error if unable to resolve
+            end
+
+            -- If the resolved path is absolute, reset the resolution
+            if string.sub(resolvedPath, 1, 1) == "/" then
+                resolvedParts = self:splitPath(resolvedPath)
+            else
+                -- Otherwise, continue appending parts to the current resolution
+                table.insert(resolvedParts, resolvedPath)
+            end
         end
     end
-    return self, path
+
+    return "/" .. table.concat(resolvedParts, "/")
 end
+
+
+-- Find the correct filesystem and the relative path for that filesystem
+---@param path string
+---@param uid number
+---@return nil
+---@return string
+function RealFS:findFS(path,uid)
+    -- First, resolve the full path (handle symlinks)
+    local resolvedPath, err = self:resolveFullPath(path,uid)
+    if not resolvedPath then
+        return nil, "Error resolving path: " .. err
+    end
+
+    -- Check if the resolved path is within a mounted filesystem
+    for mountPoint, mountedFs in pairs(self.mounts) do
+        if string.sub(resolvedPath, 1, #mountPoint) == mountPoint then
+            local relativePath = string.sub(resolvedPath, #mountPoint + 1)
+            if relativePath == "" then relativePath = "/" end
+            return mountedFs, relativePath
+        end
+    end
+
+    -- If no mounted filesystem is found, return the base filesystem
+    return self, resolvedPath
+end
+
 local function mysplit(inputstr, sep)
     if sep == nil then
       sep = "%s"
@@ -111,7 +238,7 @@ end
 
 -- Open a file and return a stream
 function RealFS:open(path, mode, userId)
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_open(relativePath, mode, userId)
 end
 
@@ -212,7 +339,7 @@ end
 
 -- List files in a directory
 function RealFS:list(path, userId)
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_list(relativePath, userId)
 end
 
@@ -252,6 +379,10 @@ end
 
 -- Get a user's permissions for a path
 function RealFS:Permissions(path, userId)
+    path = path:gsub(" $", "")
+    if path:sub(1,1) ~= "/" then
+        path = "/"..path
+    end
     local meta = self.permissions[path]
     if not meta then return 0,"NOTFOUND"..path end
     if userId == 0 then
@@ -262,7 +393,11 @@ function RealFS:Permissions(path, userId)
     end
     return meta.allPerms,"GENERIC"
 end
-function RealFS:getPermissions(path, userId)
+function RealFS:getPermissions(path,usr)
+    local fs, relativePath = self:findFS(path,usr)
+    return fs:_getPermissions(relativePath,usr)
+end
+function RealFS:_getPermissions(path, userId)
     path = path:gsub(" $", "")
     if path:sub(1,1) ~= "/" then
         path = "/"..path
@@ -293,6 +428,10 @@ local function printComp(str)
 end
 
 function RealFS:getOwner(path)
+    local fs, relativePath = self:findFS(path,0)
+    return fs:_getOwner(relativePath)
+end
+function RealFS:_getOwner(path)
     path = path:gsub(" $", "")
     if path:sub(1,1) ~= "/" then
         path = "/"..path
@@ -306,7 +445,7 @@ end
 
 -- Make a directory
 function RealFS:makeDir(path, userId)
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_makeDir(relativePath, userId)
 end
 
@@ -345,7 +484,7 @@ end
 
 -- Delete a file or directory
 function RealFS:delete(path, userId)
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_delete(relativePath, userId)
 end
 
@@ -367,7 +506,7 @@ end
 -- Function to change the permissions of a file or directory
 function RealFS:chmod(path, userId, newPermissions,scope)
     -- Find the filesystem and the relative path
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_chmod(relativePath, userId, newPermissions,scope)
 end
 
@@ -403,7 +542,7 @@ end
 -- Function to execute a file using fs.open
 function RealFS:exec(path, userId)
     -- Find the filesystem and relative path
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_exec(relativePath, userId)
 end
 
@@ -414,7 +553,7 @@ function RealFS:_exec(path, userId)
     
     -- Check if the user has execute permissions
     if not self:checkPermissions(path, userId, "x") then
-        return nil, "Permission denied for execution"
+        error("Permission denied for execution "..path,2)
     end
 
     -- Open the file in read mode
@@ -440,7 +579,8 @@ end
 -- Function to check if the path is a directory
 function RealFS:isDir(path, userId)
     -- Find the filesystem and relative path
-    local fs, relativePath = self:findFS(path)
+    
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_isDir(relativePath, userId)
 end
 
@@ -460,7 +600,7 @@ function RealFS:_isDir(path, userId)
 end
 function RealFS:exists(path, userId)
     -- Find the filesystem and relative path
-    local fs, relativePath = self:findFS(path)
+    local fs, relativePath = self:findFS(path,userId)
     return fs:_exists(relativePath, userId)
 end
 

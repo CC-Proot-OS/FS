@@ -17,6 +17,12 @@ function DFS:new()
             perms = perms or 0
         }
     end
+    function DevFileSystem:_isDir(path,uid)
+        if path == "/" or path == "" then
+            return true
+        end
+        return false
+    end
 
     -- Override open to handle device nodes
     function DevFileSystem:open(path, mode, userId)

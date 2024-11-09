@@ -73,7 +73,7 @@ function UserFS:new(baseFs,usr)
 
     -- Wrapper function for `isDir`
     function o.isDir(path)
-        return baseFs:isDir(path)
+        return baseFs:isDir(path,usr)
     end
 
     function o.delete(path)

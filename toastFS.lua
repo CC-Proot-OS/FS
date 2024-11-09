@@ -4,14 +4,14 @@
 local textutils = fs:exec("/lib/txtUtil.lua",0)()
 local ofs = fs
 -- Define the FileSystem class
-local FileSystem = {}
-FileSystem.__index = FileSystem
+local ToasterFileSystem = {}
+ToasterFileSystem.__index = ToasterFileSystem
 
 --- Constructor for the filesystem
---- @return FileSystem
---- @class FileSystem
-function FileSystem:new()
-    --- @class FileSystem
+--- @return ToasterFileSystem
+--- @class ToasterFileSystem
+function ToasterFileSystem:new()
+    --- @class ToasterFileSystem
     local fs = {
         root = {
             bin = { permissions = { [0] = 7 }, isDir = true },
@@ -790,4 +790,4 @@ function FileSystem:new()
     return fs
 end
 
-return FileSystem
+return ToasterFileSystem
