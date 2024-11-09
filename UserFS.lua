@@ -85,7 +85,10 @@ function UserFS:new(baseFs,usr)
         return baseFs:Permissions(path, usr)
     end
     function o.getPermissions(path, user)
-        return baseFs:Permissions(path, user)
+        return baseFs:getPermissions(path, user)
+    end
+    function o.getOwner(path)
+        return baseFs:getOwner(path)
     end
 
     function o.complete(sPath, sLocation, bIncludeFiles, bIncludeDirs)

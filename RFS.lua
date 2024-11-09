@@ -229,6 +229,7 @@ end
 
 -- Check if user has required permissions for a given file
 function RealFS:checkPermissions(path, userId, accessType)
+    path = path:gsub(" $", "")
     path = path:gsub("%/$", "")
     
     if #path == 0 then
@@ -260,6 +261,47 @@ function RealFS:Permissions(path, userId)
         return meta.perms
     end
     return meta.allPerms,"GENERIC"
+end
+function RealFS:getPermissions(path, userId)
+    path = path:gsub(" $", "")
+    if path:sub(1,1) ~= "/" then
+        path = "/"..path
+    end
+    local meta = self.permissions[path]
+    if not meta then return 0,"NOTFOUND"..path end
+    if userId == 0 then
+        return 7
+    elseif userId == meta.ownerId then
+        return meta.perms
+    elseif userId == "G" then
+        return meta.groupPerms
+    end
+    return meta.allPerms,"GENERIC"
+end
+local function printHex(str)
+    for i = 1, #str, 1 do
+        write(string.format("%02x ",string.sub(str,i,i):byte()))
+    end
+    print()
+end
+local function printComp(str)
+    for i = 1, #str, 1 do
+        write(string.sub(str,i,i).."  ")
+    end
+    print()
+    printHex(str)
+end
+
+function RealFS:getOwner(path)
+    path = path:gsub(" $", "")
+    if path:sub(1,1) ~= "/" then
+        path = "/"..path
+    end
+    local meta = self.permissions[path]
+    --print(path,meta)
+    --printComp(path)
+    --printComp("/var/log/kern.log")
+    return meta and meta.ownerId or 0
 end
 
 -- Make a directory
