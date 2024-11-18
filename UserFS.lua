@@ -59,7 +59,7 @@ function UserFS:new(baseFs,usr)
     function o.exists(path)
         --coroutine.yield("SYSCALL","log",{{level="debug"},"run",path,debug.traceback()})
         --assert(path ~= nil)
-        return baseFs:exists(path)
+        return baseFs:exists(path,usr)
     end
 
     function o.move(path, dest)

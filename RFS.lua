@@ -242,7 +242,7 @@ function RealFS:new(storePath)
             -- Check if user has read permissions
             if not self:checkPermissions(path, userId, "r") then
                 local p, e = self:Permissions(path, userId)
-                return nil, "Permission denied for reading " .. p .. " " .. e
+                return nil, "Permission denied for reading " .. p .. " - " .. e
             end
         elseif mode == "w" or mode == "w+" then
             if meta then
