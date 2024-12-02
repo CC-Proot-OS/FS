@@ -37,6 +37,12 @@ function UserFS:new(baseFs,usr)
     function o.attributes(path)
         return baseFs:attributes(path, usr)
     end
+    function o.isReadOnly(path)
+        return baseFs:isReadOnly(path, usr)
+    end
+    function o.getFreeSpace(path)
+        return baseFs:getFreeSpace(path, usr)
+    end
 
     function o.exec(path)
         return baseFs:exec(path, usr)

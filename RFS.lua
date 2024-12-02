@@ -338,6 +338,20 @@ function RealFS:new(storePath)
 
         return ofs.list(absolutePath)
     end
+    function FS:isReadOnly(path, userId)
+        local fs, relativePath = self:findFS(path, userId)
+        return fs:_isReadOnly(relativePath, userId)
+    end
+    function FS:_isReadOnly(path,uid)
+
+        if FS:exists(path,uid) then
+            return not FS:checkPermissions(path,uid,"r")
+        else
+            local parentPath = self:getParentPath(path)
+            return not FS:checkPermissions(parentPath,uid,"r")
+        end
+        
+    end
 
     -- Check if user has required permissions for a given file
     function FS:checkPermissions(path, userId, accessType)
@@ -438,6 +452,7 @@ function RealFS:new(storePath)
         return fs:_makeDir(relativePath, userId)
     end
 
+    -- Make a directory
     -- Internal make directory function
     function FS:_makeDir(path, userId)
         local absolutePath = self.combine(self.storePath, path)
@@ -460,6 +475,16 @@ function RealFS:new(storePath)
         }
         self:savePermissions()
         return true
+    end
+
+    function FS:getFreeSpace(path, userId)
+        local fs, relativePath = self:findFS(path, userId)
+        return fs:_getFreeSpace(relativePath, userId)
+    end
+    -- Make a directory
+    function FS:_getFreeSpace(path, userId)
+        local absolutePath = self.combine(self.storePath, path)
+        return ofs.getFreeSpace(absolutePath)
     end
 
     -- Get the parent path of a given path
@@ -566,7 +591,7 @@ function RealFS:new(storePath)
 
         -- Check if the user has execute permissions
         if not self:checkPermissions(path, userId, "x") then
-            error("Permission denied for execution " .. path, 2)
+            error("Permission denied for execution " .. path .. " "..userId.." "..tostring(self:checkPermissions(path, userId, "x")), 2)
         end
 
         -- Open the file in read mode

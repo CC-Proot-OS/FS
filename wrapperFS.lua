@@ -34,6 +34,16 @@ function WrapperFS:list(path,usr)
     end
 end
 
+function WrapperFS:isReadOnly(path,usr)
+    local fs, relativePath = self:findFs(path)
+    if fs then
+        --print("Listing contents of:", relativePath, "in filesystem:", fs)
+        return fs:isReadOnly(relativePath,usr)
+    else
+        return nil, "Path not found."
+    end
+end
+
 -- Wrapper function for `open`
 function WrapperFS:open(path, mode, userId)
     local fs, relativePath = self:findFs(path)
