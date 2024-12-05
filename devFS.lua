@@ -32,6 +32,8 @@ function DFS:new()
             return {
                 read = function() return targetItem.handler("read") end,
                 readAll = function() return targetItem.handler("read") end,
+                readLine = function() return targetItem.handler("read") end,
+                seek = function() return targetItem.handler("seek") end,
                 write = function(data) targetItem.handler("write", data) end,
                 close = function() end  -- No-op for devices
             }
